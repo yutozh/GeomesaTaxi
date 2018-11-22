@@ -1,20 +1,26 @@
-package org.zyt.geomesa;
+package org.zyt.geomesa.GeomesaTools;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
+import org.apache.hadoop.hbase.TableNotFoundException;
 import org.geotools.data.*;
+import org.geotools.data.simple.SimpleFeatureStore;
 import org.geotools.factory.Hints;
-import org.geotools.filter.identity.FeatureIdImpl;
+import org.locationtech.geomesa.hbase.data.HBaseDataStoreFactory;
+import org.locationtech.geomesa.index.geotools.GeoMesaDataStore;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
+import org.opengis.filter.Filter;
+import org.zyt.geomesa.Utils.RecordTime;
 
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
 public class GeomesaInsert {
+    public static String typeName = "taxi-geomesa";
     private final Map<String, String> params;
     private final TutorialData data;
 
@@ -31,10 +37,29 @@ public class GeomesaInsert {
         try {
             datastore = createDataStore(params);
 
+            System.out.println("Cleaning up test data");
+            try {
+                // delete before insert
+                if (datastore instanceof GeoMesaDataStore) {
+                    ((GeoMesaDataStore) datastore).delete();
+                } else {
+                    ((SimpleFeatureStore) datastore.getFeatureSource(typeName)).removeFeatures(Filter.INCLUDE);
+                    datastore.removeSchema(typeName);
+                }
+                System.out.println("Old table cleaned");
+            } catch (TableNotFoundException e){
+                System.out.println("Table not exists");
+            }
+
+            long time1=System.currentTimeMillis();
+            datastore = createDataStore(params);
             SimpleFeatureType sft = getSimpleFeatureType(data);
             createSchema(datastore, sft);
             List<SimpleFeature> features = getFeatures(data);
             writeFeatures(datastore, sft, features);
+            long time2=System.currentTimeMillis();
+            RecordTime.writeLocalStrOne("Insert "+(time2-time1)+ "\n", "");
+
         }catch (Exception e){
             e.printStackTrace();
         }
@@ -118,4 +143,18 @@ public class GeomesaInsert {
             System.out.println();
         }
     }
+    public static void main(String[] args) throws IOException {
+        try {
+            args = new String[]{"--hbase.catalog", "a", "--hbase.zookeepers", "192.168.1.133"};
+            new GeomesaInsert(args, new HBaseDataStoreFactory().getParametersInfo(), new GeomesaData())
+                    .insertRoute();
+        } catch (ParseException e) {
+            System.exit(1);
+        } catch (Throwable e) {
+            e.printStackTrace();
+            System.exit(2);
+        }
+        System.exit(0);
+    }
+
 }

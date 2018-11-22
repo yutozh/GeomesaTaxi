@@ -6,7 +6,7 @@
  * http://www.opensource.org/licenses/apache2.0.php.
  */
 
-package org.zyt.geomesa;
+package org.zyt.geomesa.GeomesaTools;
 
 import org.geotools.data.Query;
 import org.geotools.filter.text.cql2.CQLException;

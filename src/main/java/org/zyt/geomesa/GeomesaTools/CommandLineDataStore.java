@@ -6,7 +6,7 @@
  * http://www.opensource.org/licenses/apache2.0.php.
  */
 
-package org.zyt.geomesa;
+package org.zyt.geomesa.GeomesaTools;
 
 import org.apache.commons.cli.*;
 import org.geotools.data.DataAccessFactory.Param;

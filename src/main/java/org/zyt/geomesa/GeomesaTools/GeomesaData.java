@@ -1,13 +1,11 @@
-package org.zyt.geomesa;
+package org.zyt.geomesa.GeomesaTools;
 
-import org.apache.commons.cli.ParseException;
 import org.geotools.data.Query;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.factory.Hints;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.geotools.filter.text.cql2.CQLException;
 import org.geotools.filter.text.ecql.ECQL;
-import org.locationtech.geomesa.hbase.data.HBaseDataStoreFactory;
 import org.locationtech.geomesa.utils.interop.SimpleFeatureTypes;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
@@ -19,8 +17,6 @@ import org.slf4j.LoggerFactory;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.net.URI;
-import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -28,12 +24,12 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
-import java.util.Locale;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.zyt.geomesa.Utils.MD5;
 
 public class GeomesaData implements TutorialData {
     private static final Logger logger = LoggerFactory.getLogger(GeomesaData.class);
@@ -60,7 +56,7 @@ public class GeomesaData implements TutorialData {
             attributes.append("startTime:Date:default=true,");
             attributes.append("endTime:Date:index=true,");
             attributes.append("startPoint:Point:srid=4326:default=true,");
-            attributes.append("endPoint:Point:srid=4326:index=true"); // the "*" denotes the default geometry (used for indexing)
+            attributes.append("endPoint:Point:srid=4326"); // the "*" denotes the default geometry (used for indexing)
 
             // create the simple-feature type - use the GeoMesa 'SimpleFeatureTypes' class for best compatibility
             // may also use geotools DataUtilities or SimpleFeatureTypeBuilder, but some features may not work
@@ -89,6 +85,7 @@ public class GeomesaData implements TutorialData {
             conf.set("fs.defaultFS", "hdfs://master:9000");
             conf.set("fs.hdfs.impl", "org.apache.hadoop.hdfs.DistributedFileSystem");
 
+            long time1=System.currentTimeMillis();
             FileSystem fs = null;
             try {
                 fs = FileSystem.get(conf);
@@ -154,6 +151,8 @@ public class GeomesaData implements TutorialData {
 
                         // some dates are converted implicitly, so we can set them as strings
                         // however, the date format here isn't one that is converted, so we parse it into a java.util.Date
+
+                        // add 8 hours
                         builder.set("startTime",
                                 new Date(Long.valueOf(startTime)*1000));
                         builder.set("endTime",
@@ -179,6 +178,8 @@ public class GeomesaData implements TutorialData {
                     }
                     content = d.readLine();
                 }
+                long time2=System.currentTimeMillis();
+                System.out.println("HDFS Read time:"+(time2-time1));
 
 
 //            // read the bundled GDELT 2.0 TSV
@@ -242,6 +243,7 @@ public class GeomesaData implements TutorialData {
 //                throw new RuntimeException("Error reading GDELT data:", e);
 //            }
                 this.features = Collections.unmodifiableList(features);
+                d.close(); //关闭文件
                 fs.close();
             } catch (IOException e) {
                 e.printStackTrace();
